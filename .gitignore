@@ -28,3 +28,4 @@ backend/.idea
 backend/.vscode
 backend/build
 backend/gradle
+backend/neo4j_db
