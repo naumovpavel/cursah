@@ -15,7 +15,7 @@ import io.swagger.v3.oas.annotations.servers.Server;
         ),
         security = @SecurityRequirement(name = "JWT"),
         servers = {
-                @Server(url = "http://localhost:7874", description = "Default Server URL")
+                @Server(url = "http://89.169.167.5:8081", description = "Default Server URL")
         }
 )
 @SecurityScheme(

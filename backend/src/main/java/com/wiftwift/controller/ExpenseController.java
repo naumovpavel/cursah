@@ -2,6 +2,8 @@ package com.wiftwift.controller;
 
 import com.wiftwift.dto.ExpenseRequest;
 import com.wiftwift.model.Expense;
+import com.wiftwift.model.ExpenseParticipant;
+import com.wiftwift.model.User;
 import com.wiftwift.service.ExpenseService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -31,5 +33,10 @@ public class ExpenseController {
     public String confirm(@PathVariable Long expenseId) {
         expenseService.confirm(expenseId);
         return "Исполнение долга подтверждено";
+    }
+
+    @GetMapping("/{expenseId}/participants")
+    public List<Long> participants(@PathVariable Long expenseId) {
+        return expenseService.participants(expenseId).stream().map(p -> p.getUserId()).toList();
     }
 }

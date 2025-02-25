@@ -35,11 +35,6 @@ public class GroupController {
         return groupService.createGroup(group, userService.getCurrentUser());
     }
 
-    @PostMapping("/{groupId}/payment-suggestion")
-    public Object setPaymentSuggestion(@PathVariable Long groupId) {
-        return groupService.setPaymentSuggestion(groupId);
-    }
-
     @PostMapping("/invite")
     public ResponseEntity<String> inviteUser(@RequestBody InviteRequest request) {
         groupService.invitePerson(request);

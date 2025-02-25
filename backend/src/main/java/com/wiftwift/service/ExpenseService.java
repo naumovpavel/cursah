@@ -48,6 +48,10 @@ public class ExpenseService {
         expenseParticipantRepository.save(expenseParticipant);
     }
 
+    public List<ExpenseParticipant> participants(Long expenseId) {
+        return expenseParticipantRepository.findByExpenseId(expenseId);
+    }
+
 
     public void confirm(Long expenseId) {
         ExpenseParticipant e = expenseParticipantRepository.findById(new ExpenseParticipantId(expenseId, userService.getCurrentUserId())).orElseThrow(

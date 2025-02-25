@@ -9,6 +9,6 @@ import java.util.Optional;
 
 public interface ExpenseParticipantRepository extends JpaRepository<ExpenseParticipant, ExpenseParticipantId> {
    Optional<ExpenseParticipant> findById(ExpenseParticipantId id);
-
    List<ExpenseParticipant> findAllById_ExpenseId(Long id);
+   List<ExpenseParticipant> findByExpenseId(Long id);
 }

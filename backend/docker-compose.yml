@@ -9,17 +9,23 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata3:/var/lib/postgresql/data
+      - pgdata6:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d
 
-  arangodb:
+  neo4j:
     image: neo4j:latest
-    environment:
-      ARANGO_ROOT_PASSWORD: arangopassword
     ports:
-      - "8529:8529"
+      - 7474:7474
+      - 7687:7687
+    environment:
+      - NEO4J_AUTH=neo4j/password
+      - NEO4J_apoc_export_file_enabled=true
+      - NEO4J_apoc_import_file_enabled=true
+      - NEO4J_apoc_import_file_use__neo4j__config=true
     volumes:
-      - arangodata:/var/lib/arangodb3
-      - arangologs:/var/lib/arangodb3-apps
+      - ./neo4j_db/data:/data
+      - ./neo4j_db/logs:/logs
+      - ./neo4j_db/import:/var/lib/neo4j/import
 
   backend:
     build: .
@@ -27,9 +33,9 @@ services:
       - "8081:8081"
     depends_on:
       - postgres
-      - arangodb
+      - neo4j
 
 volumes:
-  pgdata3:
-  arangodata:
-  arangologs:
+  pgdata6:
+  neo4jdata:
+  neo4jlogs:

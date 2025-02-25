@@ -79,7 +79,10 @@ public class UserService {
 
     public User findById(Long userId) {
         return userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found."));
+    }
 
+    public List<User> getAll() {
+        return userRepository.findAll();
     }
 
     public List<Invite> getMyInvites() {

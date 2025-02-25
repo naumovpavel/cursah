@@ -27,15 +27,14 @@ public class Group {
     @Column(name = "closed_at")
     private LocalDateTime closedAt;
 
-    @Column(name = "should_be_paid_by")
-    private Long shouldBePaidBy;
 
     @Column(name = "paid_by")
     private Long paidBy;
 
+    @Column(name = "should_be_paid_by")
+    private Long shouldBePaidBy;
+
+
     @Column(columnDefinition = "TEXT")
     private String description;
-
-    @OneToMany(mappedBy = "group")
-    private List<Expense> expenses;
 }

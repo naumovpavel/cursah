@@ -23,12 +23,6 @@ public class Expense {
     @Column(nullable = false)
     private BigDecimal value;
 
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "group_id", nullable = false)
-    @MapsId("groupId")
-    private Group group;
-
-    @Column(name = "group_id")
+    @Column(name = "group_id", nullable = false)
     private Long groupId;
 }

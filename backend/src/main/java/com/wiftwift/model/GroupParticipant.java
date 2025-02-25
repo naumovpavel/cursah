@@ -21,7 +21,4 @@ public class GroupParticipant {
     @Id
     @Column(name = "group_id")
     private Long groupId;
-
-    @Column(name = "acknowledgment_all", nullable = false)
-    private Boolean acknowledgmentAll = false;
 }

@@ -39,5 +39,13 @@ public class UserController {
         return userService.getGroups();
     }
 
+    @GetMapping("/{id}")
+    public User getUser(@PathVariable Long id) {
+        return userService.findById(id);
+    }
 
+    @GetMapping
+    public List<User> getAll() {
+        return userService.getAll();
+    }
 }
