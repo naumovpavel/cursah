@@ -50,5 +50,11 @@ public class GroupController {
     public GroupResponse getGroups(@PathVariable Long groupId) {
         return groupService.findById(groupId);
     }
+
+    @PostMapping("/{groupId}/setPaidBy/{userId}")
+    public ResponseEntity<String> setPaidBy(@PathVariable Long groupId, @PathVariable Long userId) {
+        groupService.setPaidBy(groupId, userId);
+        return ResponseEntity.ok("Successfully set paid by");
+    }
 }
 

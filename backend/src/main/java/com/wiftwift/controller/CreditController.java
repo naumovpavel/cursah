@@ -1,18 +1,20 @@
 package com.wiftwift.controller;
 
+import java.math.BigDecimal;
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import com.wiftwift.service.CreditService;
 import com.wiftwift.dto.ReturnCreditRequest;
 import com.wiftwift.model.CreditNode;
 
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -31,9 +33,16 @@ public class CreditController {
         return creditService.getCreditsFrom(id);
     }
 
-    @PostMapping("/credit/return/{id}")
-    public CreditNode returnCredit(@PathVariable Long id, @RequestBody ReturnCreditRequest request) {
-        return creditService.returnCredit(id, request.getAmount());
+    @PostMapping("/credit/return")
+    public ResponseEntity<?> returnCredit(@RequestBody ReturnCreditRequest request) {        
+        try {
+            CreditNode result = creditService.returnCredit(request.getCreditId(), request.getAmount());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+        }
+
     }
 
     @PostMapping("/credit/approve/{id}")

@@ -10,5 +10,4 @@ public interface CreditRepository extends Neo4jRepository<CreditNode, Long> {
     List<CreditNode> findByToUser(Long userId);
     List<CreditNode> findByFromUser(Long userId);
     List<CreditNode> findByApproved(Boolean approved);
-
 }

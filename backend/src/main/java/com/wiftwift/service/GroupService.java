@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PathVariable;
 
 @Service
 public class GroupService {
@@ -58,6 +59,17 @@ public class GroupService {
         invite.setInvitedUser(invitedUser.getUsername());
         invite.setFromUser(((UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal()).getUsername());
         inviteRepository.save(invite);
+    }
+
+    public void setPaidBy(Long groupId, Long userId) {
+        Group group = groupRepository.findById(groupId).orElseThrow(
+                () -> new RuntimeException("группа не найдена")
+        );
+        userRepository.findById(userId).orElseThrow(
+                () -> new RuntimeException("человек не найден")
+        );
+        group.setPaidBy(userId);
+        groupRepository.save(group);
     }
 
     public void addParticipant(Long groupId, String invitedUser) {

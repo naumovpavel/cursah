@@ -42,13 +42,17 @@ public class CreditService {
     public CreditNode returnCredit(Long creditId, BigDecimal amount) {
         CreditNode credit = creditRepository.findById(creditId)
                 .orElseThrow(() -> new RuntimeException("Credit not found"));
+    
+        if (amount == null) {
+            throw new IllegalArgumentException("Amount cannot be null");
+        }
 
         if (credit.getReturnedAmount() == null) {
             credit.setReturnedAmount(amount);
         } else {
             credit.setReturnedAmount(credit.getReturnedAmount().add(amount));
         }
-
+    
         return creditRepository.save(credit);
     }
 
@@ -59,6 +63,14 @@ public class CreditService {
     public void closeGroup(Long groupId) {
         List<Expense> expenses = expenseRepository.findByGroupId(groupId);
         Group group = groupRepository.getById(groupId);
+        if (group.getClosedAt() != null) {
+            throw new RuntimeException("group already closed");
+        }
+        if (group.getPaidBy() < 1) {
+            throw new RuntimeException("Невыбран пользователь оплативший траты");
+        }
+        group.setClosedAt(java.time.LocalDateTime.now());
+        groupRepository.save(group);
 
         for (Expense expense : expenses) {
             List<ExpenseParticipant> participants = expenseParticipantRepository.findByExpenseId(expense.getId());
