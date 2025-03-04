@@ -148,6 +148,7 @@ const ExpenseList = ({ expenses, groupUsers, setExpenses, isGroupClosed }) => {
   };
   
   const getNonParticipantUsers = (expense) => {
+    if (!expense.participants || !expense.participants.length) return groupUsers;
     const participantUserIds = typeof expense.participants[0] === 'object' 
       ? expense.participants.map(p => p.userId)
       : expense.participants || [];

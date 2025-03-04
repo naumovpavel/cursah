@@ -2,9 +2,14 @@ package com.wiftwift.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+
 import org.springframework.stereotype.Service;
 import com.wiftwift.model.CreditNode;
 import com.wiftwift.model.Expense;
@@ -29,7 +34,7 @@ public class CreditService {
     @Autowired
     private ExpenseParticipantRepository expenseParticipantRepository;
     @Autowired
-    private UserRepository userRepository; // Добавьте, если еще нет
+    private UserRepository userRepository;
 
     public List<CreditNode> getCreditsTo(Long userId) {
         return creditRepository.findByToUser(userId);
@@ -42,9 +47,13 @@ public class CreditService {
     public CreditNode returnCredit(Long creditId, BigDecimal amount) {
         CreditNode credit = creditRepository.findById(creditId)
                 .orElseThrow(() -> new RuntimeException("Credit not found"));
-    
+
         if (amount == null) {
             throw new IllegalArgumentException("Amount cannot be null");
+        }
+
+        if (amount.compareTo(new BigDecimal(0)) != 1) {
+            throw new IllegalArgumentException("Amount cannot be less than 0");
         }
 
         if (credit.getReturnedAmount() == null) {
@@ -64,13 +73,13 @@ public class CreditService {
 
         if (credit.getReturnedAmount() != null) {
             credit.setCreditAmount(credit.getCreditAmount().subtract(credit.getReturnedAmount()));
-            if (credit.getCreditAmount().compareTo(new BigDecimal(0)) != 1) {
+            if (credit.getCreditAmount().compareTo(new BigDecimal(0)) == -1 || credit.getCreditAmount().compareTo(new BigDecimal(0)) == 0) {
                 creditRepository.delete(credit);
                 return;
             }
         }
 
-        credit.setReturnedAmount(null);
+        credit.setReturnedAmount(new BigDecimal(0));
         credit.setApproved(true);
         creditRepository.save(credit);
     }
@@ -130,66 +139,149 @@ public class CreditService {
 
     private void optimizeCredits() {
         List<CreditNode> allCredits = creditRepository.findByApproved(false);
-
-        Map<Pair<Long, Long>, BigDecimal> debtMap = new HashMap<>();
-
+        
+        Map<Long, Map<Long, BigDecimal>> graph = new HashMap<>();
+        
         for (CreditNode credit : allCredits) {
-            BigDecimal amount = credit.getCreditAmount().subtract(
-                    credit.getReturnedAmount() != null ? credit.getReturnedAmount() : BigDecimal.ZERO);
-
-            if (amount.compareTo(BigDecimal.ZERO) <= 0)
+            if (credit.getCreditAmount().compareTo(BigDecimal.ZERO) <= 0)
                 continue;
-
-            Pair<Long, Long> debtKey = Pair.of(credit.getFromUser(), credit.getToUser());
-            debtMap.put(debtKey, debtMap.getOrDefault(debtKey, BigDecimal.ZERO).add(amount));
+            
+            Long from = credit.getFromUser();
+            Long to = credit.getToUser();
+            BigDecimal amount = credit.getCreditAmount();
+            
+            graph.putIfAbsent(from, new HashMap<>());
+            graph.get(from).put(to, amount);
         }
-
-        boolean optimized;
-        do {
-            optimized = false;
-
-            for (Map.Entry<Pair<Long, Long>, BigDecimal> entry : new HashMap<>(debtMap).entrySet()) {
-                Pair<Long, Long> forward = entry.getKey();
-                Pair<Long, Long> backward = Pair.of(forward.getSecond(), forward.getFirst());
-
-                if (debtMap.containsKey(backward)) {
-                    BigDecimal forwardAmount = entry.getValue();
-                    BigDecimal backwardAmount = debtMap.get(backward);
-
-                    BigDecimal minAmount = forwardAmount.min(backwardAmount);
-
-                    // Уменьшаем долги на минимальное значение
-                    if (minAmount.compareTo(BigDecimal.ZERO) > 0) {
-                        debtMap.put(forward, forwardAmount.subtract(minAmount));
-                        debtMap.put(backward, backwardAmount.subtract(minAmount));
-                        // Удаляем записи, если долг стал нулевым
-                        if (debtMap.get(forward).compareTo(BigDecimal.ZERO) <= 0) {
-                            debtMap.remove(forward);
-                        }
-                        if (debtMap.get(backward).compareTo(BigDecimal.ZERO) <= 0) {
-                            debtMap.remove(backward);
-                        }
-
-                        optimized = true;
-                        break;
-                    }
-                }
-            }
-        } while (optimized);
-
+        
+        optimizeCycles(graph);
+        
         for (CreditNode credit : allCredits) {
             creditRepository.delete(credit);
         }
+        
+        for (Long from : graph.keySet()) {
+            for (Map.Entry<Long, BigDecimal> entry : graph.get(from).entrySet()) {
+                Long to = entry.getKey();
+                BigDecimal amount = entry.getValue();
+                
+                if (amount.compareTo(BigDecimal.ZERO) > 0) {
+                    CreditNode newCredit = new CreditNode();
+                    newCredit.setFromUser(from);
+                    newCredit.setToUser(to);
+                    newCredit.setCreditAmount(amount);
+                    newCredit.setReturnedAmount(BigDecimal.ZERO);
+                    newCredit.setApproved(false);
+                    
+                    creditRepository.save(newCredit);
+                }
+            }
+        }
+    }
+    
+    private void optimizeCycles(Map<Long, Map<Long, BigDecimal>> graph) {
+        Set<Long> allNodes = new HashSet<>(graph.keySet());
+        for (Map<Long, BigDecimal> edges : graph.values()) {
+            allNodes.addAll(edges.keySet());
+        }
+        
+        boolean cycleFound;
+        do {
+            cycleFound = false;
+            
+            for (Long startNode : allNodes) {
+                if (!graph.containsKey(startNode)) continue;
+                
+                List<Long> cycle = findCycle(graph, startNode);
+                
+                if (cycle != null && cycle.size() > 1) {
+                    Collections.reverse(cycle);
+                    reduceCycle(graph, cycle);
+                    cycleFound = true;
+                    break;
+                }
+            }
+        } while (cycleFound);
+    }
+    
+    private List<Long> findCycle(Map<Long, Map<Long, BigDecimal>> graph, Long startNode) {
+        Map<Long, Long> parent = new HashMap<>();
+        Set<Long> visited = new HashSet<>();
+        Set<Long> inStack = new HashSet<>();
+        
+        return dfs(graph, startNode, parent, visited, inStack);
+    }
+    
+    private List<Long> dfs(Map<Long, Map<Long, BigDecimal>> graph, Long node, 
+                          Map<Long, Long> parent, Set<Long> visited, Set<Long> inStack) {
+        visited.add(node);
+        inStack.add(node);
+        
+        if (graph.containsKey(node)) {
+            for (Long neighbor : new ArrayList<>(graph.get(node).keySet())) {
+                if (graph.get(node).get(neighbor).compareTo(BigDecimal.ZERO) <= 0) {
+                    continue;
+                }
+                
+                if (!visited.contains(neighbor)) {
+                    parent.put(neighbor, node);
+                    List<Long> cycle = dfs(graph, neighbor, parent, visited, inStack);
+                    if (cycle != null) {
+                        return cycle;
+                    }
+                } 
 
-        for (Map.Entry<Pair<Long, Long>, BigDecimal> entry : debtMap.entrySet()) {
-            CreditNode newCredit = new CreditNode();
-            newCredit.setFromUser(entry.getKey().getFirst());
-            newCredit.setToUser(entry.getKey().getSecond());
-            newCredit.setCreditAmount(entry.getValue());
-            newCredit.setReturnedAmount(BigDecimal.ZERO);
-            newCredit.setApproved(false);
+                else if (inStack.contains(neighbor)) {
+                    List<Long> cycle = new ArrayList<>();
+                    cycle.add(neighbor);
+                    
+                    Long current = node;
+                    while (current != null && !current.equals(neighbor)) {
+                        cycle.add(current);
+                        current = parent.get(current);
+                    }
+                    
+                    if (current != null) {
+                        cycle.add(neighbor);
+                        return cycle;
+                    }
+                }
+            }
+        }
+        
+        inStack.remove(node);
+        return null;
+    }
+    
+    private void reduceCycle(Map<Long, Map<Long, BigDecimal>> graph, List<Long> cycle) {
+        BigDecimal minFlow = null;
 
-            creditRepository.save(newCredit);
+        for (int i = 0; i < cycle.size() - 1; i++) {
+            Long from = cycle.get(i);
+            Long to = cycle.get(i + 1);
+            if (!graph.containsKey(from) || !graph.get(from).containsKey(to)) {
+                return;
+            }
+    
+            BigDecimal flow = graph.get(from).get(to);
+            if (minFlow == null || flow.compareTo(minFlow) < 0) {
+                minFlow = flow;
+            }
+        }
+
+        for (int i = 0; i < cycle.size() - 1; i++) {
+            Long from = cycle.get(i);
+            Long to = cycle.get(i + 1);
+
+            BigDecimal newFlow = graph.get(from).get(to).subtract(minFlow);
+            if (newFlow.compareTo(BigDecimal.ZERO) <= 0) {
+                graph.get(from).remove(to);
+                if (graph.get(from).isEmpty()) {
+                    graph.remove(from);
+                }
+            } else {
+                graph.get(from).put(to, newFlow);
+            }
         }
     }
 }
