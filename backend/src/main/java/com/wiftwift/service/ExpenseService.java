@@ -42,7 +42,7 @@ public class ExpenseService {
         expenseParticipant.setExpense(expenseRepository.findById(expenseId).orElseThrow(
                 () -> new IllegalArgumentException("Expense not found")
         ));
-        expenseParticipant.setConfirmed(userId == null);
+        expenseParticipant.setConfirmed(userId == userService.getCurrentUserId());
 
         expenseParticipant.setUser(userService.findById(userId));
         expenseParticipantRepository.save(expenseParticipant);
@@ -59,6 +59,13 @@ public class ExpenseService {
         );
         e.setConfirmed(true);
         expenseParticipantRepository.save(e);
+    }
+
+    public void reject(Long expenseId) {
+        ExpenseParticipant e = expenseParticipantRepository.findById(new ExpenseParticipantId(expenseId, userService.getCurrentUserId())).orElseThrow(
+                () -> new IllegalArgumentException("Expense not found")
+        );
+        expenseParticipantRepository.delete(e);;
     }
 
     public List<Expense> getExpensesBiGroupId(Long groupId) {

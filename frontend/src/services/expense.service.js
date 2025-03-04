@@ -19,6 +19,11 @@ const ExpenseService = {
     return response.data;
   },
 
+  rejectExpense: async (expenseId) => {
+    const response = await api.post(`/api/expenses/${expenseId}/reject`);
+    return response.data;
+  },
+
   getExpenseParticipants: async (expenseId) => {
     const response = await api.get(`/api/expenses/${expenseId}/participants`);
     return response.data;

@@ -40,7 +40,7 @@ const UserCredits = ({ credits, onApproveCredit }) => {
               <p><strong>Осталось вернуть:</strong> {remainingAmount} ₽</p>
             </div>
             
-            {!credit.approved && remainingAmount === 0 && (
+            {!credit.approved && credit.returnedAmount !== 0 && (
               <button 
                 className="btn btn-primary"
                 onClick={() => {
@@ -58,7 +58,7 @@ const UserCredits = ({ credits, onApproveCredit }) => {
       {showApproveDialog && selectedCredit && (
         <ConfirmDialog
           title="Подтверждение возврата"
-          message="Вы уверены, что хотите подтвердить полный возврат долга?"
+          message="Вы уверены, что хотите подтвердить возврат долга?"
           onConfirm={handleApprove}
           onCancel={() => {
             setShowApproveDialog(false);

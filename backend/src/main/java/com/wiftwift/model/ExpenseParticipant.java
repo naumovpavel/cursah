@@ -33,6 +33,5 @@ public class ExpenseParticipant {
     @Column(name = "expense_id", insertable = false, updatable = false)
     private Long expenseId;
 
-    private boolean confirmed;
-
+    private Boolean confirmed;
 }

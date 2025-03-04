@@ -1,6 +1,8 @@
 package com.wiftwift.controller;
 
+import com.wiftwift.dto.ExpenseParticipantResponse;
 import com.wiftwift.dto.ExpenseRequest;
+import com.wiftwift.dto.MyCreditsDTO.CreditInfo;
 import com.wiftwift.model.Expense;
 import com.wiftwift.model.ExpenseParticipant;
 import com.wiftwift.model.User;
@@ -8,6 +10,7 @@ import com.wiftwift.service.ExpenseService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -35,8 +38,16 @@ public class ExpenseController {
         return "Исполнение долга подтверждено";
     }
 
+    @PostMapping("/{expenseId}/reject")
+    public String reject(@PathVariable Long expenseId) {
+        expenseService.reject(expenseId);
+        return "Отклоненно";
+    }
+
     @GetMapping("/{expenseId}/participants")
-    public List<Long> participants(@PathVariable Long expenseId) {
-        return expenseService.participants(expenseId).stream().map(p -> p.getUserId()).toList();
+    public List<ExpenseParticipantResponse> participants(@PathVariable Long expenseId) {
+        var participants = expenseService.participants(expenseId).stream().map(p -> new ExpenseParticipantResponse(p.getUserId(), p.getExpenseId(), p.getConfirmed())).toList();
+        System.out.println(participants);
+        return participants;
     }
 }

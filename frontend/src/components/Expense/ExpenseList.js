@@ -7,6 +7,8 @@ const ExpenseList = ({ expenses, groupUsers, setExpenses, isGroupClosed }) => {
   const { currentUser } = useAuth();
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [showConfirmJoinDialog, setShowConfirmJoinDialog] = useState(false);
+  const [showAddParticipantDialog, setShowAddParticipantDialog] = useState(false);
+  const [selectedUserToAdd, setSelectedUserToAdd] = useState(null);
   const [error, setError] = useState(null);
 
   const handleJoinExpense = async () => {
@@ -32,17 +34,125 @@ const ExpenseList = ({ expenses, groupUsers, setExpenses, isGroupClosed }) => {
       setError('Не удалось присоединиться к трате.');
     }
   };
+  
+  const handleAddParticipant = async () => {
+    if (!selectedExpense || !selectedUserToAdd) return;
+
+    try {
+      await ExpenseService.joinExpense(selectedExpense.id, selectedUserToAdd);
+      
+      const updatedExpenses = expenses.map(expense => {
+        if (expense.id === selectedExpense.id) {
+          const newParticipant = {
+            userId: selectedUserToAdd,
+            confirmed: false
+          };
+          
+          const updatedParticipants = [...(expense.participants || []), newParticipant];
+          
+          return {
+            ...expense,
+            participants: updatedParticipants
+          };
+        }
+        return expense;
+      });
+      
+      setExpenses(updatedExpenses);
+      setShowAddParticipantDialog(false);
+      setSelectedExpense(null);
+      setSelectedUserToAdd(null);
+    } catch (err) {
+      setError('Не удалось добавить участника к трате.');
+    }
+  };
+  
+  const handleConfirmExpense = async (expenseId) => {
+    try {
+      await ExpenseService.confirmExpense(expenseId);
+      
+      const updatedExpenses = expenses.map(expense => {
+        if (expense.id === expenseId) {
+          const updatedParticipants = expense.participants.map(participant => {
+            if (participant.userId === currentUser.id) {
+              return { ...participant, confirmed: true };
+            }
+            return participant;
+          });
+          
+          return {
+            ...expense,
+            participants: updatedParticipants
+          };
+        }
+        return expense;
+      });
+      
+      setExpenses(updatedExpenses);
+    } catch (err) {
+      setError('Не удалось подтвердить участие в трате.');
+    }
+  };
+  
+  const handleRejectExpense = async (expenseId) => {
+    try {
+      await ExpenseService.rejectExpense(expenseId);
+      
+      const updatedExpenses = expenses.map(expense => {
+        if (expense.id === expenseId) {
+          const updatedParticipants = expense.participants.filter(
+            participant => participant.userId !== currentUser.id
+          );
+          
+          return {
+            ...expense,
+            participants: updatedParticipants
+          };
+        }
+        return expense;
+      });
+      
+      setExpenses(updatedExpenses);
+    } catch (err) {
+      setError('Не удалось отклонить участие в трате.');
+    }
+  };
 
   const getParticipantNames = (expense) => {
-    const participants = expense.participants || [];
-    return participants.map(userId => {
-      const user = groupUsers.find(u => u.id === userId);
-      return user ? user.username : 'Неизвестный пользователь';
-    }).join(', ');
+    if (!expense.participants) return '';
+    
+    if (typeof expense.participants[0] === 'object') {
+      return expense.participants.map(participant => {
+        const user = groupUsers.find(u => u.id === participant.userId);
+        const status = participant.confirmed ? '' : ' (ожидает подтверждения)';
+        return user ? user.username + status : 'Неизвестный пользователь' + status;
+      }).join(', ');
+    } else {
+      return expense.participants.map(userId => {
+        const user = groupUsers.find(u => u.id === userId);
+        return user ? user.username : 'Неизвестный пользователь';
+      }).join(', ');
+    }
   };
 
   const isParticipant = (expense) => {
-    return expense.participants && expense.participants.includes(currentUser.id);
+    if (!expense.participants || !expense.participants.length) return false;
+    console.log(expense, currentUser);
+    return expense.participants.some(p => p.userId === currentUser.id && p.confirmed);
+  };
+  
+  const needsConfirmation = (expense) => {
+    if (!expense.participants || !expense.participants.length) return false;
+    
+    return expense.participants.some(p => p.userId === currentUser.id && !p.confirmed);
+  };
+  
+  const getNonParticipantUsers = (expense) => {
+    const participantUserIds = typeof expense.participants[0] === 'object' 
+      ? expense.participants.map(p => p.userId)
+      : expense.participants || [];
+      
+    return groupUsers.filter(user => !participantUserIds.includes(user.id));
   };
 
   if (expenses.length === 0) {
@@ -70,17 +180,48 @@ const ExpenseList = ({ expenses, groupUsers, setExpenses, isGroupClosed }) => {
             </p>
           </div>
           
-          {!isGroupClosed && !isParticipant(expense) && (
-            <button 
-              className="btn btn-secondary"
-              onClick={() => {
-                setSelectedExpense(expense);
-                setShowConfirmJoinDialog(true);
-              }}
-            >
-              Присоединиться
-            </button>
-          )}
+          <div className="expense-actions">
+            {!isGroupClosed && !isParticipant(expense) && !needsConfirmation(expense) && (
+              <button 
+                className="btn btn-secondary"
+                onClick={() => {
+                  setSelectedExpense(expense);
+                  setShowConfirmJoinDialog(true);
+                }}
+              >
+                Присоединиться
+              </button>
+            )}
+            
+            {!isGroupClosed && (
+              <button 
+                className="btn btn-outline-primary"
+                onClick={() => {
+                  setSelectedExpense(expense);
+                  setShowAddParticipantDialog(true);
+                }}
+              >
+                Добавить участника
+              </button>
+            )}
+            
+            {needsConfirmation(expense) && (
+              <div className="confirmation-actions">
+                <button 
+                  className="btn btn-success mr-2"
+                  onClick={() => handleConfirmExpense(expense.id)}
+                >
+                  Принять
+                  </button>
+                <button 
+                  className="btn btn-danger"
+                  onClick={() => handleRejectExpense(expense.id)}
+                >
+                  Отклонить
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       ))}
 
@@ -95,6 +236,35 @@ const ExpenseList = ({ expenses, groupUsers, setExpenses, isGroupClosed }) => {
           }}
           confirmText="Присоединиться"
         />
+      )}
+      
+      {showAddParticipantDialog && selectedExpense && (
+        <ConfirmDialog
+          title="Добавить участника к трате"
+          message="Выберите пользователя, которого хотите добавить к трате"
+          onConfirm={handleAddParticipant}
+          onCancel={() => {
+            setShowAddParticipantDialog(false);
+            setSelectedExpense(null);
+            setSelectedUserToAdd(null);
+          }}
+          confirmText="Добавить"
+        >
+          <div className="form-group">
+            <select 
+              className="form-control"
+              onChange={(e) => setSelectedUserToAdd(parseInt(e.target.value))}
+              value={selectedUserToAdd || ''}
+            >
+              <option value="">Выберите пользователя</option>
+              {getNonParticipantUsers(selectedExpense).map(user => (
+                <option key={user.id} value={user.id}>
+                  {user.username}
+                </option>
+              ))}
+            </select>
+          </div>
+        </ConfirmDialog>
       )}
     </div>
   );

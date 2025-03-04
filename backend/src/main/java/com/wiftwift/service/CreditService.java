@@ -52,12 +52,27 @@ public class CreditService {
         } else {
             credit.setReturnedAmount(credit.getReturnedAmount().add(amount));
         }
-    
+
+        credit.setApproved(false);
+
         return creditRepository.save(credit);
     }
 
     public void approveCredit(Long creditId) {
-        creditRepository.deleteById(creditId);
+        CreditNode credit = creditRepository.findById(creditId)
+                .orElseThrow(() -> new RuntimeException("Credit not found"));
+
+        if (credit.getReturnedAmount() != null) {
+            credit.setCreditAmount(credit.getCreditAmount().subtract(credit.getReturnedAmount()));
+            if (credit.getCreditAmount().compareTo(new BigDecimal(0)) != 1) {
+                creditRepository.delete(credit);
+                return;
+            }
+        }
+
+        credit.setReturnedAmount(null);
+        credit.setApproved(true);
+        creditRepository.save(credit);
     }
 
     public void closeGroup(Long groupId) {
