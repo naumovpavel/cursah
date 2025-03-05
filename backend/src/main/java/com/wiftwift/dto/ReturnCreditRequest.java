@@ -7,6 +7,6 @@ import lombok.Data;
 @Data
 public class ReturnCreditRequest {
     private BigDecimal amount;
-    private Long creditId;
+    private String creditId;
 }
 

@@ -1,29 +1,35 @@
 package com.wiftwift.model;
 
-import java.math.BigDecimal;
-
-import org.springframework.data.neo4j.core.schema.Property;
+import org.springframework.data.neo4j.core.schema.RelationshipId;
 import org.springframework.data.neo4j.core.schema.RelationshipProperties;
 import org.springframework.data.neo4j.core.schema.TargetNode;
-import org.springframework.data.neo4j.core.schema.Relationship;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
+
 import lombok.Data;
+
+import java.math.BigDecimal;
 
 @RelationshipProperties
 @Data
 public class CreditRelationship {
-    @Id @GeneratedValue
+    
+    @RelationshipId
     private Long id;
     
-    @Property
-    private BigDecimal amount;
-    
-    @Relationship(type = "OWES", direction = Relationship.Direction.OUTGOING)
-    private UserNode fromUser;
+    private BigDecimal creditAmount;
+    private BigDecimal returnedAmount;
+    private Boolean approved;
     
     @TargetNode
-    private UserNode toUser;
+    private UserNode targetUser;
+    
+    public CreditRelationship() {
+    }
+    
+    public CreditRelationship(BigDecimal creditAmount, BigDecimal returnedAmount, Boolean approved, UserNode targetUser) {
+        this.creditAmount = creditAmount;
+        this.returnedAmount = returnedAmount;
+        this.approved = approved;
+        this.targetUser = targetUser;
+    }
 }
-
 

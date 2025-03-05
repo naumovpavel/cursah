@@ -12,8 +12,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import com.wiftwift.service.CreditService;
+import com.wiftwift.dto.CreditDTO;
 import com.wiftwift.dto.ReturnCreditRequest;
-import com.wiftwift.model.CreditNode;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,20 +24,20 @@ public class CreditController {
     private final CreditService creditService;
 
     @GetMapping("/credit/to/{id}")
-    public List<CreditNode> getCreditsTo(@PathVariable Long id) {
+    public List<CreditDTO> getCreditsTo(@PathVariable Long id) {
         return creditService.getCreditsTo(id);
     }
 
     @GetMapping("/credit/from/{id}")
-    public List<CreditNode> getCreditsFrom(@PathVariable Long id) {
+    public List<CreditDTO> getCreditsFrom(@PathVariable Long id) {
         return creditService.getCreditsFrom(id);
     }
 
     @PostMapping("/credit/return")
     public ResponseEntity<?> returnCredit(@RequestBody ReturnCreditRequest request) {        
         try {
-            CreditNode result = creditService.returnCredit(request.getCreditId(), request.getAmount());
-            return ResponseEntity.ok(result);
+            creditService.returnCredit(request.getCreditId(), request.getAmount());
+            return ResponseEntity.ok("ok");
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.badRequest().body("Error: " + e.getMessage());
@@ -46,7 +46,7 @@ public class CreditController {
     }
 
     @PostMapping("/credit/approve/{id}")
-    public void approveCredit(@PathVariable Long id) {
+    public void approveCredit(@PathVariable String id) {
         creditService.approveCredit(id);
     }
 
