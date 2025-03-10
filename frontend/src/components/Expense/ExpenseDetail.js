@@ -18,7 +18,7 @@ const ExpenseDetail = ({ expenseId, groupUsers, onClose }) => {
         const participantsData = await ExpenseService.getExpenseParticipants(expenseId);
         setParticipants(participantsData);
       } catch (err) {
-        setError('Не удалось загрузить детали траты.');
+        setError(err.response.data.message);
       } finally {
         setLoading(false);
       }
@@ -32,7 +32,7 @@ const ExpenseDetail = ({ expenseId, groupUsers, onClose }) => {
       await ExpenseService.joinExpense(expenseId);
       setParticipants([...participants, currentUser.id]);
     } catch (err) {
-      setError('Не удалось присоединиться к трате.');
+      setError(err.response.data.message);
     }
   };
 
@@ -41,7 +41,7 @@ const ExpenseDetail = ({ expenseId, groupUsers, onClose }) => {
       await ExpenseService.confirmExpense(expenseId);
       onClose();
     } catch (err) {
-      setError('Не удалось подтвердить трату.');
+      setError(err.response.data.message);
     }
   };
 

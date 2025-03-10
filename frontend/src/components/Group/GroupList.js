@@ -15,7 +15,7 @@ const GroupList = () => {
         const data = await GroupService.getAllGroups();
         setGroups(data);
       } catch (err) {
-        setError('Не удалось загрузить список групп.');
+        setError(err.response.data.message);
       } finally {
         setLoading(false);
       }

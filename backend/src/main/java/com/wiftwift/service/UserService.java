@@ -1,5 +1,6 @@
 package com.wiftwift.service;
 
+import com.wiftwift.exception.NotFoundException;
 import com.wiftwift.model.Group;
 import com.wiftwift.model.Invite;
 import com.wiftwift.model.Role;
@@ -7,17 +8,20 @@ import com.wiftwift.model.User;
 import com.wiftwift.repository.GroupParticipantsRepository;
 import com.wiftwift.repository.InviteRepository;
 import com.wiftwift.repository.UserRepository;
+
+import jakarta.transaction.Transactional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 
 
 @Service
+@Transactional
 public class UserService {
 
     @Autowired
@@ -42,7 +46,7 @@ public class UserService {
     }
 
     public User getByUsername(String username) {
-        return userRepository.findByUsername(username).orElseThrow(() -> new RuntimeException("User not found."));
+        return userRepository.findByUsername(username).orElseThrow(() -> new NotFoundException("пользователь не найден."));
 
     }
 
@@ -60,7 +64,7 @@ public class UserService {
 
     public User findByUsername(String username) {
         return userRepository.findByUsername(username).orElseThrow(
-                () -> new RuntimeException("User not found.")
+                () -> new NotFoundException("пользователь не найден.")
         );
     }
 
@@ -78,7 +82,7 @@ public class UserService {
     }
 
     public User findById(Long userId) {
-        return userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found."));
+        return userRepository.findById(userId).orElseThrow(() -> new NotFoundException("пользователь не найден."));
     }
 
     public List<User> getAll() {
@@ -91,7 +95,7 @@ public class UserService {
 
     public void approveInvite(Long inviteId) {
         Invite invite = inviteRepository.findById(inviteId).orElseThrow(
-                () -> new RuntimeException("Invite not found.")
+                () -> new NotFoundException("приглашение не найдено.")
         );
         groupService.addParticipant(invite.getGroupId(), invite.getInvitedUser());
         invite.setStatus(1);
@@ -100,7 +104,7 @@ public class UserService {
 
     public void rejectInvite(Long inviteId) {
         Invite invite = inviteRepository.findById(inviteId).orElseThrow(
-                () -> new RuntimeException("Invite not found.")
+                () -> new NotFoundException("приглашение не найдено.")
         );
         invite.setStatus(2);
         inviteRepository.save(invite);

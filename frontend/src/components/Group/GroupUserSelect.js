@@ -15,7 +15,7 @@ const GroupUserSelect = ({ onChange, value, currentUserId, excludeUsers = [] }) 
         const userData = await UserService.getAllUsers();
         setUsers(userData || []);
       } catch (err) {
-        setError('Не удалось загрузить список пользователей');
+        setError(err.response.data.message);
         setUsers([]);
       } finally {
         setLoading(false);

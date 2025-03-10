@@ -25,51 +25,60 @@ const GroupDetail = () => {
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [selectedUserToInvite, setSelectedUserToInvite] = useState(null);
   const [showCloseGroupDialog, setShowCloseGroupDialog] = useState(false);
+  const [showAcknowledgmentAllExpensesDialog, setAcknowledgmentAllExpensesDialog] = useState(false);
+  const [showAcknowledgmentAllExpensesButton, setAcknowledgmentAllExpensesButton] = useState(false);
+  const [showAcknowledgmentAllExpenseParticipantenseDialog, setShowAcknowledgmentAllExpenseParticipantenseDialog] = useState(false);
+  const [showAcknowledgmentAllExpenseParticipantenseButton, setShowAcknowledgmentAllExpenseParticipantenseButton] = useState(false);
   
   const [shouldBePaidByUser, setShouldBePaidByUser] = useState(null);
   const [selectedPaidByUserId, setSelectedPaidByUserId] = useState(null);
   const [showPaidBySelector, setShowPaidBySelector] = useState(false);
   const [paidByUser, setPaidByUser] = useState(null);
 
-  useEffect(() => {
-    const fetchGroupData = async () => {
-      try {
-        setLoading(true);
-        const groupData = await GroupService.getGroupById(groupId);
-        setGroup(groupData.group);
-        setUsers(groupData.users);
-        
-        if (groupData.group.shouldBePaidBy) {
-          const paidByUserData = await UserService.getUserById(groupData.group.shouldBePaidBy);
-          setShouldBePaidByUser(paidByUserData);
-        }
-        
-        if (groupData.group.paidBy) {
-          const actualPaidByUser = await UserService.getUserById(groupData.group.paidBy);
-          setPaidByUser(actualPaidByUser);
-        }
-        
-        const expensesData = await GroupService.getGroupExpenses(groupId);
-        
-        const expensesWithParticipants = await Promise.all(
-          expensesData.map(async (expense) => {
-            const participants = await ExpenseService.getExpenseParticipants(expense.id);
-            expense.participants = participants;
-            return expense;
-          })
-        );
-
-        setExpenses(expensesWithParticipants);
-        
-        const allUsersData = await UserService.getAllUsers();
-        setAllUsers(allUsersData);
-      } catch (err) {
-        setError('Не удалось загрузить данные группы.');
-      } finally {
-        setLoading(false);
+  const fetchGroupData = async () => {
+    try {
+      setLoading(true);
+      const groupData = await GroupService.getGroupById(groupId);
+      setGroup(groupData.group);
+      setUsers(groupData.users);
+      
+      if (groupData.group.shouldBePaidBy) {
+        const paidByUserData = await UserService.getUserById(groupData.group.shouldBePaidBy);
+        setShouldBePaidByUser(paidByUserData);
       }
-    };
+      
+      if (groupData.group.paidBy) {
+        const actualPaidByUser = await UserService.getUserById(groupData.group.paidBy);
+        setPaidByUser(actualPaidByUser);
+      }
+      
+      const expensesData = await GroupService.getGroupExpenses(groupId);
+      
+      const expensesWithParticipants = await Promise.all(
+        expensesData.map(async (expense) => {
+          const participants = await ExpenseService.getExpenseParticipants(expense.id);
+          expense.participants = participants;
+          return expense;
+        })
+      );
 
+      setExpenses(expensesWithParticipants);
+      
+      const allUsersData = await UserService.getAllUsers();
+      setAllUsers(allUsersData);
+
+      const acknowledgmentsData = await GroupService.getAcknowledgments(groupId);
+      console.log(acknowledgmentsData);
+      setAcknowledgmentAllExpensesButton(!acknowledgmentsData.expense);
+      setShowAcknowledgmentAllExpenseParticipantenseButton(!acknowledgmentsData.expenseParticipants);
+    } catch (err) {
+      setError(err.response.data.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  useEffect(() => {
     fetchGroupData();
   }, [groupId]);
 
@@ -83,7 +92,7 @@ const GroupDetail = () => {
       setExpenses([...expenses, createdExpense]);
       setShowAddExpense(false);
     } catch (err) {
-      setError('Не удалось добавить трату.');
+      setError(err.response.data.message);
     }
   };
 
@@ -98,7 +107,7 @@ const GroupDetail = () => {
       setShowInviteDialog(false);
       setSelectedUserToInvite(null);
     } catch (err) {
-      setError('Не удалось пригласить пользователя.');
+      setError(err.response.data.message);
     }
   };
 
@@ -108,7 +117,29 @@ const GroupDetail = () => {
       setGroup({ ...group, closedAt: new Date().toISOString() });
       setShowCloseGroupDialog(false);
     } catch (err) {
-      setError('Не удалось закрыть группу.');
+      setError(err.response.data.message);
+    }
+  };
+
+  const handleAcknowledgmentAllExpenses = async () => {
+    try {
+      await GroupService.setAcknowledgmentAllExpenses(groupId);
+      setAcknowledgmentAllExpensesDialog(false);
+      setAcknowledgmentAllExpensesButton(false);
+      fetchGroupData();
+    } catch (err) {
+      setError(err.response.data.message);
+    }
+  };
+
+  const handleAcknowledgmentAllExpenseParticipantense = async () => {
+    try {
+      await GroupService.setAcknowledgmentAllExpenseParticipantense(groupId);
+      setShowAcknowledgmentAllExpenseParticipantenseDialog(false);
+      setShowAcknowledgmentAllExpenseParticipantenseButton(false);
+      fetchGroupData();
+    } catch (err) {
+      setError(err.response.data.message);
     }
   };
   
@@ -118,7 +149,7 @@ const GroupDetail = () => {
 
   const handlePaidBySubmit = async () => {
     if (!selectedPaidByUserId) {
-      setError('Пожалуйста, выберите пользователя');
+      setError(err.response.data.message);
       return;
     }
 
@@ -143,7 +174,7 @@ const GroupDetail = () => {
       setShowPaidBySelector(false);
       setSelectedPaidByUserId(null);
     } catch (err) {
-      setError('Не удалось обновить информацию об оплате.');
+      setError(err.response.data.message);
     } finally {
       setLoading(false);
     }
@@ -164,6 +195,23 @@ const GroupDetail = () => {
       <div className="group-header">
         <h1>{group.name}</h1>
         <div className="group-actions">
+          {showAcknowledgmentAllExpensesButton && (
+            <button
+                className="btn btn-danger"
+                onClick={() => setAcknowledgmentAllExpensesDialog(true)}
+              >
+                Утвердить траты
+            </button>
+          )}
+          {showAcknowledgmentAllExpenseParticipantenseButton && (
+            <button 
+              className="btn btn-danger"
+              onClick={() => setShowAcknowledgmentAllExpenseParticipantenseDialog(true)}
+            >
+              Утвердить участия в тратах
+            </button>
+          )}
+          
           {canCloseGroup && (
             <button 
               className="btn btn-danger"
@@ -289,7 +337,7 @@ const GroupDetail = () => {
           <ExpenseList 
             expenses={expenses} 
             groupUsers={users}
-            setExpenses={setExpenses}
+            fetchGroupData={fetchGroupData} 
             isGroupClosed={!!group.closedAt}
           />
         )}
@@ -330,6 +378,28 @@ const GroupDetail = () => {
           onConfirm={handleCloseGroup}
           onCancel={() => setShowCloseGroupDialog(false)}
           confirmText="Закрыть группу"
+          confirmButtonClass="btn-danger"
+        />
+      )}
+
+      {showAcknowledgmentAllExpensesDialog && (
+        <ConfirmDialog
+          title="Утвердить траты"
+          message="Вы уверены, что хотите утрвердить траты?"
+          onConfirm={handleAcknowledgmentAllExpenses}
+          onCancel={() => setAcknowledgmentAllExpensesDialog(false)}
+          confirmText="Утвердить траты"
+          confirmButtonClass="btn-danger"
+        />
+      )}
+
+      {showAcknowledgmentAllExpenseParticipantenseDialog && (
+        <ConfirmDialog
+          title="Утвердить участия в тратах"
+          message="Вы уверены, что хотите утвердить участия в тратах?"
+          onConfirm={handleAcknowledgmentAllExpenseParticipantense}
+          onCancel={() => setShowAcknowledgmentAllExpenseParticipantenseDialog(false)}
+          confirmText="Утвердить участия в тратах"
           confirmButtonClass="btn-danger"
         />
       )}

@@ -27,7 +27,22 @@ const GroupService = {
   },
 
   closeGroup: async (groupId) => {
-    const response = await api.post(`/api/group/close/${groupId}`);
+    const response = await api.post(`/api/groups/close/${groupId}`);
+    return response.data;
+  },
+
+  setAcknowledgmentAllExpenses: async (groupId) => {
+    const response = await api.post(`/api/groups/setAcknowledgmentAllExpenses/${groupId}`);
+    return response.data;
+  },
+
+  setAcknowledgmentAllExpenseParticipantense: async (groupId) => {
+    const response = await api.post(`/api/groups/setAcknowledgmentAllExpenseParticipantense/${groupId}`);
+    return response.data;
+  },
+
+  getAcknowledgments: async (groupId) => {
+    const response = await api.get(`/api/groups/getAcknowledgments/${groupId}`);
     return response.data;
   },
 

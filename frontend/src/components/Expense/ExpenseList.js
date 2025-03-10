@@ -3,7 +3,7 @@ import ExpenseService from '../../services/expense.service';
 import { useAuth } from '../../contexts/AuthContext';
 import ConfirmDialog from '../Common/ConfirmDialog';
 
-const ExpenseList = ({ expenses, groupUsers, setExpenses, isGroupClosed }) => {
+const ExpenseList = ({ expenses, groupUsers, fetchGroupData, isGroupClosed }) => {
   const { currentUser } = useAuth();
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [showConfirmJoinDialog, setShowConfirmJoinDialog] = useState(false);
@@ -27,11 +27,11 @@ const ExpenseList = ({ expenses, groupUsers, setExpenses, isGroupClosed }) => {
         return expense;
       });
       
-      setExpenses(updatedExpenses);
+      fetchGroupData();
       setShowConfirmJoinDialog(false);
       setSelectedExpense(null);
     } catch (err) {
-      setError('Не удалось присоединиться к трате.');
+      setError(err.response.data.message);
     }
   };
   
@@ -58,12 +58,12 @@ const ExpenseList = ({ expenses, groupUsers, setExpenses, isGroupClosed }) => {
         return expense;
       });
       
-      setExpenses(updatedExpenses);
+      fetchGroupData();
       setShowAddParticipantDialog(false);
       setSelectedExpense(null);
       setSelectedUserToAdd(null);
     } catch (err) {
-      setError('Не удалось добавить участника к трате.');
+      setError(err.response.data.message);
     }
   };
   
@@ -88,9 +88,9 @@ const ExpenseList = ({ expenses, groupUsers, setExpenses, isGroupClosed }) => {
         return expense;
       });
       
-      setExpenses(updatedExpenses);
+      fetchGroupData();
     } catch (err) {
-      setError('Не удалось подтвердить участие в трате.');
+      setError(err.response.data.message);
     }
   };
   
@@ -112,9 +112,9 @@ const ExpenseList = ({ expenses, groupUsers, setExpenses, isGroupClosed }) => {
         return expense;
       });
       
-      setExpenses(updatedExpenses);
+      fetchGroupData();
     } catch (err) {
-      setError('Не удалось отклонить участие в трате.');
+      setError(err.response.data.message);
     }
   };
 

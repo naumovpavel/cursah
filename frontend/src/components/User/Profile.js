@@ -19,48 +19,50 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const fetchUserData = async () => {
+    try {
+      setLoading(true);
+      const userId = currentUser.id;
+      
+      const [groups, credits, debts, invites] = await Promise.all([
+        UserService.getGroups(),
+        CreditService.getCreditsTo(userId),
+        CreditService.getCreditsFrom(userId),
+        UserService.getUserInvites()
+      ]);
+      
+      setUserGroups(groups);
+
+      const creditsWithUsernames = await Promise.all(
+        credits.map(async (credit) => {
+          console.log("credit", credit);
+          const user = await UserService.getUserById(credit.fromUser);
+          credit.username = user.username;
+          return credit;
+        })
+      );
+
+      const debtsWithUsernames = await Promise.all(
+        debts.map(async (debt) => {
+          console.log("debt", debt);
+          const user = await UserService.getUserById(debt.toUser);
+          debt.username = user.username;
+          return debt;
+        })
+      );
+
+
+      setUserCredits(creditsWithUsernames);
+      setUserDebts(debtsWithUsernames);
+      setUserInvites(invites);
+    } catch (err) {
+      setError(err.response.data.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        setLoading(true);
-        const userId = currentUser.id;
-        
-        const [groups, credits, debts, invites] = await Promise.all([
-          UserService.getGroups(),
-          CreditService.getCreditsTo(userId),
-          CreditService.getCreditsFrom(userId),
-          UserService.getUserInvites()
-        ]);
-        
-        setUserGroups(groups);
-
-        const creditsWithUsernames = await Promise.all(
-          credits.map(async (credit) => {
-            const user = await UserService.getUserById(credit.fromUser);
-            credit.username = user.username;
-            return credit;
-          })
-        );
-
-        const debtsWithUsernames = await Promise.all(
-          debts.map(async (debt) => {
-            const user = await UserService.getUserById(debt.toUser);
-            debt.username = user.username;
-            return debt;
-          })
-        );
-
-
-        setUserCredits(creditsWithUsernames);
-        setUserDebts(debtsWithUsernames);
-        setUserInvites(invites);
-      } catch (err) {
-        setError('Не удалось загрузить данные профиля.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchUserData();
   }, [currentUser.id]);
 
@@ -70,8 +72,9 @@ const Profile = () => {
       setUserInvites(userInvites.filter(invite => invite.id !== inviteId));
       const groups = await UserService.getGroups();
       setUserGroups(groups);
+      fetchUserData();
     } catch (err) {
-      setError('Не удалось принять приглашение.');
+      setError(err.response.data.message);
     }
   };
 
@@ -79,8 +82,9 @@ const Profile = () => {
     try {
       await UserService.rejectInvite(inviteId);
       setUserInvites(userInvites.filter(invite => invite.id !== inviteId));
+      fetchUserData();
     } catch (err) {
-      setError('Не удалось отклонить приглашение.');
+      setError(err.response.data.message);
     }
   };
 
@@ -95,7 +99,7 @@ const Profile = () => {
       setUserCredits(credits);
       setUserDebts(debts);
     } catch (err) {
-      setError('Не удалось вернуть долг.');
+      setError(err.response.data.message);
     }
   };
 
@@ -110,7 +114,7 @@ const Profile = () => {
       setUserCredits(credits);
       setUserDebts(debts);
     } catch (err) {
-      setError('Не удалось подтвердить возврат долга.');
+      setError(err.response.data.message);
     }
   };
 

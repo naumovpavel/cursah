@@ -2,7 +2,11 @@ package com.wiftwift.service;
 
 import com.wiftwift.authentication.service.JwtService;
 import com.wiftwift.dto.JwtAuthenticationResponse;
+import com.wiftwift.exception.ForbiddenException;
 import com.wiftwift.model.User;
+
+import jakarta.transaction.Transactional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -11,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 
 @Service
+@Transactional
 public class AuthService {
 
     @Autowired
@@ -33,7 +38,7 @@ public class AuthService {
         try {
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(name, password));
         } catch (Exception e) {
-            throw new RuntimeException("Invalid username or password.");
+            throw new ForbiddenException("неправильное имя пользователя или пароль.");
         }
         var userDetails = userService.getByUsername(name);
         var jwt = jwtService.generateToken(userDetails);

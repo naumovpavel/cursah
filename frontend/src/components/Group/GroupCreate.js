@@ -42,7 +42,7 @@ const GroupCreate = () => {
       const response = await GroupService.createGroup(groupData);
       navigate(`/groups/${response.id}`);
     } catch (err) {
-      setError('Не удалось создать группу. Пожалуйста, попробуйте еще раз.');
+      setError(err.response.data.message);
     } finally {
       setLoading(false);
       setSubmitting(false);

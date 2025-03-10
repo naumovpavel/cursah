@@ -24,4 +24,9 @@ public class GroupParticipants {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "acknowledgment_all_expenses")
+    private Boolean acknowledgmentAllExpenses;
+    @Column(name = "acknowledgment_all_expense_participantense")
+    private Boolean acknowledgmentAllExpenseParticipantense;
 }

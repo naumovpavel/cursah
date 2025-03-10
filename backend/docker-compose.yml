@@ -9,8 +9,14 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata6:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
       - ./initdb:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   neo4j:
     image: neo4j:latest
@@ -26,16 +32,24 @@ services:
       - ./neo4j_db/data:/data
       - ./neo4j_db/logs:/logs
       - ./neo4j_db/import:/var/lib/neo4j/import
+    healthcheck:
+      test: ["CMD", "wget", "-O", "/dev/null", "http://localhost:7474"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   backend:
     build: .
     ports:
       - "8081:8081"
     depends_on:
-      - postgres
-      - neo4j
+      postgres:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
 
 volumes:
-  pgdata6:
+  pgdata:
   neo4jdata:
   neo4jlogs:

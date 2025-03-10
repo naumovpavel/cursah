@@ -12,7 +12,7 @@ const UserDebts = ({ debts, onReturnCredit }) => {
     
     const amount = parseFloat(returnAmount);
     if (isNaN(amount) || amount <= 0) {
-      setError('Введите корректную сумму возврата');
+      setError(err.response.data.message);
       return;
     }
 

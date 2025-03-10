@@ -49,10 +49,5 @@ public class CreditController {
     public void approveCredit(@PathVariable String id) {
         creditService.approveCredit(id);
     }
-
-    @PostMapping("/group/close/{id}")
-    public void closeGroup(@PathVariable Long id) {
-        creditService.closeGroup(id);
-    }
 }
 

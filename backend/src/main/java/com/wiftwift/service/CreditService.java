@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 import com.wiftwift.dto.CreditDTO;
+import com.wiftwift.exception.NotFoundException;
 import com.wiftwift.model.Credit;
 import com.wiftwift.model.Expense;
 import com.wiftwift.model.ExpenseParticipant;
@@ -22,16 +23,18 @@ import com.wiftwift.model.UserNode;
 import com.wiftwift.repository.CreditRepository;
 import com.wiftwift.repository.ExpenseParticipantRepository;
 import com.wiftwift.repository.ExpenseRepository;
-import com.wiftwift.repository.GroupRepository;
 import com.wiftwift.repository.UserRepository;
+
+import jakarta.transaction.Transactional;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.util.Pair;
 
 @Service
+@Transactional
 public class CreditService {
     @Autowired
     private CreditRepository creditRepository;
-    @Autowired
-    private GroupRepository groupRepository;
     @Autowired
     private ExpenseRepository expenseRepository;
     @Autowired
@@ -59,7 +62,7 @@ public class CreditService {
 
     public void returnCredit(String creditId, BigDecimal amount) {
         Credit credit = creditRepository.findCreditRelationshipById(creditId)
-                .orElseThrow(() -> new RuntimeException("Credit not found"));
+                .orElseThrow(() -> new NotFoundException("долг не найден"));
 
         if (amount == null) {
             throw new IllegalArgumentException("Amount cannot be null");
@@ -83,7 +86,7 @@ public class CreditService {
 
     public void approveCredit(String creditId) {
         Credit credit = creditRepository.findCreditRelationshipById(creditId)
-                .orElseThrow(() -> new RuntimeException("Credit not found"));
+                .orElseThrow(() -> new NotFoundException("долг не найден"));
 
         if (credit.getReturnedAmount() != null) {
             credit.setCreditAmount(credit.getCreditAmount().subtract(credit.getReturnedAmount()));
@@ -100,26 +103,27 @@ public class CreditService {
                 credit.getApproved());
     }
 
-    public void closeGroup(Long groupId) {
-        List<Expense> expenses = expenseRepository.findByGroupId(groupId);
-        Group group = groupRepository.getById(groupId);
-        if (group.getClosedAt() != null) {
-            throw new RuntimeException("group already closed");
-        }
-        if (group.getPaidBy() < 1) {
-            throw new RuntimeException("Невыбран пользователь оплативший траты");
-        }
-        group.setClosedAt(java.time.LocalDateTime.now());
-        groupRepository.save(group);
+    public void closeGroup(Group group) {
+        List<Expense> expenses = expenseRepository.findByGroupId(group.getId());
 
         for (Expense expense : expenses) {
             List<ExpenseParticipant> participants = expenseParticipantRepository.findByExpenseId(expense.getId());
 
-            BigDecimal participantShare = expense.getValue()
-                    .divide(BigDecimal.valueOf(participants.size()), 2, RoundingMode.HALF_UP);
+            int participantCount = 0;
+            for (ExpenseParticipant participant : participants) {
+                if (participant.getConfirmed()) {
+                    participantCount++;
+                }
+            }
+
+            BigDecimal participantShare = expense.getValue().divide(BigDecimal.valueOf(participantCount), 2, RoundingMode.HALF_UP);
 
             for (ExpenseParticipant participant : participants) {
                 if (participant.getUserId().equals(group.getPaidBy())) {
+                    continue;
+                }
+
+                if (!participant.getConfirmed()) {
                     continue;
                 }
 
@@ -139,22 +143,6 @@ public class CreditService {
                         participantShare,
                         BigDecimal.ZERO,
                         false);
-
-                var user = userRepository.getById(participant.getUserId());
-                if (user.getCreditTotal() == null) {
-                    user.setCreditTotal(participantShare);
-                } else {
-                    user.setCreditTotal(user.getCreditTotal().add(participantShare));
-                }
-                userRepository.save(user);
-
-                user = userRepository.getById(group.getPaidBy());
-                if (user.getDebtTotal() == null) {
-                    user.setDebtTotal(participantShare);
-                } else {
-                    user.setDebtTotal(user.getDebtTotal().add(participantShare));
-                }
-                userRepository.save(user);
             }
         }
 
@@ -164,17 +152,21 @@ public class CreditService {
     private void optimizeCredits() {
         List<Credit> allCredits = creditRepository.findAllCreditRelationships();
 
-        Map<Long, Map<Long, BigDecimal>> graph = new HashMap<>();
+        Map<Long, Map<Long, Pair<BigDecimal, BigDecimal>>> graph = new HashMap<>();
 
         for (Credit credit : allCredits) {
             if (credit.getCreditAmount().compareTo(BigDecimal.ZERO) <= 0) {
                 continue;
             }
 
-            BigDecimal amount = credit.getCreditAmount();
 
             graph.putIfAbsent(credit.getFromUser(), new HashMap<>());
-            graph.get(credit.getFromUser()).put(credit.getToUser(), amount);
+            if (graph.get(credit.getFromUser()).get(credit.getToUser()) != null) {
+                var curCredit = graph.get(credit.getFromUser()).get(credit.getToUser());
+                graph.get(credit.getFromUser()).put(credit.getToUser(), Pair.of(credit.getCreditAmount().add(curCredit.getFirst()), credit.getReturnedAmount().add(curCredit.getSecond())));
+            } else {
+                graph.get(credit.getFromUser()).put(credit.getToUser(), Pair.of(credit.getCreditAmount(), credit.getReturnedAmount()));
+            }
         }
 
         optimizeCycles(graph);
@@ -184,16 +176,16 @@ public class CreditService {
         }
 
         for (Long from : graph.keySet()) {
-            for (Map.Entry<Long, BigDecimal> entry : graph.get(from).entrySet()) {
+            for (Map.Entry<Long, Pair<BigDecimal, BigDecimal>> entry : graph.get(from).entrySet()) {
                 Long to = entry.getKey();
-                BigDecimal amount = entry.getValue();
+                BigDecimal amount = entry.getValue().getFirst();
 
                 if (amount.compareTo(BigDecimal.ZERO) > 0) {
                     creditRepository.createCreditRelationship(
                             from,
                             to,
                             amount,
-                            BigDecimal.ZERO,
+                            entry.getValue().getSecond(),
                             false
                     );
                 }
@@ -201,9 +193,9 @@ public class CreditService {
         }
     }
 
-    private void optimizeCycles(Map<Long, Map<Long, BigDecimal>> graph) {
+    private void optimizeCycles(Map<Long, Map<Long, Pair<BigDecimal, BigDecimal>>> graph) {
         Set<Long> allNodes = new HashSet<>(graph.keySet());
-        for (Map<Long, BigDecimal> edges : graph.values()) {
+        for (Map<Long, Pair<BigDecimal, BigDecimal>> edges : graph.values()) {
             allNodes.addAll(edges.keySet());
         }
 
@@ -227,7 +219,7 @@ public class CreditService {
         } while (cycleFound);
     }
 
-    private List<Long> findCycle(Map<Long, Map<Long, BigDecimal>> graph, Long startNode) {
+    private List<Long> findCycle(Map<Long, Map<Long, Pair<BigDecimal, BigDecimal>>> graph, Long startNode) {
         Map<Long, Long> parent = new HashMap<>();
         Set<Long> visited = new HashSet<>();
         Set<Long> inStack = new HashSet<>();
@@ -235,14 +227,15 @@ public class CreditService {
         return dfs(graph, startNode, parent, visited, inStack);
     }
 
-    private List<Long> dfs(Map<Long, Map<Long, BigDecimal>> graph, Long node,
+    private List<Long> dfs(Map<Long, Map<Long, Pair<BigDecimal, BigDecimal>>> graph, Long node,
             Map<Long, Long> parent, Set<Long> visited, Set<Long> inStack) {
         visited.add(node);
         inStack.add(node);
 
         if (graph.containsKey(node)) {
             for (Long neighbor : new ArrayList<>(graph.get(node).keySet())) {
-                if (graph.get(node).get(neighbor).compareTo(BigDecimal.ZERO) <= 0) {
+                var amount = graph.get(node).get(neighbor).getFirst().subtract(graph.get(node).get(neighbor).getSecond());
+                if (amount.compareTo(BigDecimal.ZERO) <= 0) {
                     continue;
                 }
 
@@ -276,8 +269,11 @@ public class CreditService {
         return null;
     }
 
-    private void reduceCycle(Map<Long, Map<Long, BigDecimal>> graph, List<Long> cycle) {
+    private void reduceCycle(Map<Long, Map<Long, Pair<BigDecimal, BigDecimal>>> graph, List<Long> cycle) {
         BigDecimal minFlow = null;
+
+        System.out.println(graph);
+        System.out.println(cycle);
 
         for (int i = 0; i < cycle.size() - 1; i++) {
             Long from = cycle.get(i);
@@ -286,24 +282,26 @@ public class CreditService {
                 return;
             }
 
-            BigDecimal flow = graph.get(from).get(to);
+            var flow = graph.get(from).get(to).getFirst().subtract(graph.get(from).get(to).getSecond());
             if (minFlow == null || flow.compareTo(minFlow) < 0) {
                 minFlow = flow;
             }
         }
 
+        System.out.println(minFlow);
+
         for (int i = 0; i < cycle.size() - 1; i++) {
             Long from = cycle.get(i);
             Long to = cycle.get(i + 1);
 
-            BigDecimal newFlow = graph.get(from).get(to).subtract(minFlow);
+            BigDecimal newFlow = graph.get(from).get(to).getFirst().subtract(minFlow);
             if (newFlow.compareTo(BigDecimal.ZERO) <= 0) {
                 graph.get(from).remove(to);
                 if (graph.get(from).isEmpty()) {
                     graph.remove(from);
                 }
             } else {
-                graph.get(from).put(to, newFlow);
+                graph.get(from).put(to, Pair.of(newFlow, graph.get(from).get(to).getSecond()));
             }
         }
     }

@@ -19,6 +19,8 @@ CREATE TABLE groups (
 CREATE TABLE group_participants (
    user_id INT REFERENCES users(id) ON DELETE CASCADE,
    group_id INT REFERENCES groups(id) ON DELETE CASCADE,
+   acknowledgment_all_expenses BOOLEAN,
+   acknowledgment_all_expense_participantense BOOLEAN,
    PRIMARY KEY (user_id, group_id)
 );
 
@@ -40,12 +42,12 @@ BEGIN
    SELECT
        u.id AS selected_user_id,
        COALESCE(up.total_payments, 0) AS total_payments,
-       (COALESCE(up.total_payments, 0) + ABS(u.debt_total::numeric::FLOAT8 - u.credit_total::numeric::FLOAT8)) AS score
+       (COALESCE(up.total_payments, 0) + u.credit_total::numeric::FLOAT8 - u.debt_total::numeric::FLOAT8) AS score
    FROM group_participants gp
    JOIN users u ON gp.user_id = u.id
    LEFT JOIN user_payments up ON u.id = up.user_id
    WHERE gp.group_id = gpid
-   ORDER BY score ASC, total_payments DESC
+   ORDER BY score DESC, total_payments DESC
    LIMIT 1;
 END;
 $$ LANGUAGE plpgsql;
