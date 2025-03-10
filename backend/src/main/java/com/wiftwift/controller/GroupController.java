@@ -78,11 +78,9 @@ public class GroupController {
 
     @PostMapping("/close/{id}")
     public void closeGroup(@PathVariable Long id) {
+        var group = groupService.closeGroup(id);
         try {
-            var group = groupService.closeGroup(id);
             creditService.closeGroup(group);
-        } catch (ConflictException e) {
-            throw e;
         } catch (Exception e) {
             groupService.openGroup(id);
             throw e;
